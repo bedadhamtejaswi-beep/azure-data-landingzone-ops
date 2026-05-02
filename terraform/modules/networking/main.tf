@@ -280,3 +280,5 @@ resource "azurerm_private_dns_zone_virtual_network_link" "keyvault" {
   virtual_network_id    = azurerm_virtual_network.spoke.id
   registration_enabled  = false
 }
+
+# End of networking module configuration
