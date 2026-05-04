@@ -62,3 +62,5 @@ output "nsg_id" {
   description = "ID of the data subnet NSG"
   value       = azurerm_network_security_group.data_subnet.id
 }
+
+# Additional outputs may be added as new subnets are provisioned
