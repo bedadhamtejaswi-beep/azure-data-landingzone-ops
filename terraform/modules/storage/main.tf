@@ -190,3 +190,5 @@ resource "azurerm_monitor_diagnostic_setting" "storage" {
     enabled  = true
   }
 }
+
+# Lifecycle rules should be adjusted based on data retention policies
