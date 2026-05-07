@@ -101,3 +101,5 @@ resource "azurerm_monitor_diagnostic_setting" "keyvault" {
     enabled  = true
   }
 }
+
+# NOTE: Purge protection is required for HIPAA compliance
