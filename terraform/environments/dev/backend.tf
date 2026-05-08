@@ -5,3 +5,5 @@ terraform {
     path = "terraform.tfstate"
   }
 }
+
+# TODO: Migrate dev to remote backend before production deployment
