@@ -1,0 +1,10 @@
+# Dev environment sample values
+# Copy to terraform.tfvars and fill in sensitive values
+
+postgresql_admin_username = "pgadmin"
+postgresql_admin_password = "CHANGE_ME_BEFORE_APPLY"
+
+critical_alert_emails = ["platform-ops@example.com"]
+warning_alert_emails  = ["platform-ops@example.com"]
+
+log_retention_days = 30
