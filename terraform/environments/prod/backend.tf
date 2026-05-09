@@ -8,3 +8,5 @@ terraform {
     key                  = "prod/data-landingzone.tfstate"
   }
 }
+
+# State file is encrypted at rest via Azure Storage SSE
