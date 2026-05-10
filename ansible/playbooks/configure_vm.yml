@@ -1,0 +1,220 @@
+---
+# ==============================================================================
+# Configure VM - Base System Configuration
+# ==============================================================================
+# This playbook applies baseline configuration to all Data Landing Zone VMs:
+# - System updates and essential packages
+# - User management and SSH hardening
+# - Firewall configuration
+# - Time synchronization
+# - Security hardening (CIS benchmarks)
+# ==============================================================================
+
+- name: Configure Data Platform VMs
+  hosts: data_platform
+  become: true
+  vars:
+    allowed_ssh_users:
+      - azureuser
+      - platform-ops
+    ntp_servers:
+      - time.windows.com
+      - ntp.ubuntu.com
+    required_packages:
+      - curl
+      - wget
+      - jq
+      - unzip
+      - python3-pip
+      - htop
+      - iotop
+      - net-tools
+      - dnsutils
+      - postgresql-client
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+      - lsb-release
+
+  tasks:
+    # ------------------------------------------------------------------
+    # System Updates
+    # ------------------------------------------------------------------
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install required packages
+      apt:
+        name: "{{ required_packages }}"
+        state: present
+
+    # ------------------------------------------------------------------
+    # User Management
+    # ------------------------------------------------------------------
+    - name: Create platform-ops service account
+      user:
+        name: platform-ops
+        shell: /bin/bash
+        groups: sudo
+        create_home: yes
+        state: present
+
+    - name: Set up SSH authorized keys for platform-ops
+      authorized_key:
+        user: platform-ops
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+        state: present
+      ignore_errors: yes
+
+    # ------------------------------------------------------------------
+    # SSH Hardening
+    # ------------------------------------------------------------------
+    - name: Harden SSH configuration
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        validate: 'sshd -t -f %s'
+      loop:
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?X11Forwarding', line: 'X11Forwarding no' }
+        - { regexp: '^#?MaxAuthTries', line: 'MaxAuthTries 3' }
+        - { regexp: '^#?ClientAliveInterval', line: 'ClientAliveInterval 300' }
+        - { regexp: '^#?ClientAliveCountMax', line: 'ClientAliveCountMax 2' }
+        - { regexp: '^#?Protocol', line: 'Protocol 2' }
+      notify: Restart SSH
+
+    # ------------------------------------------------------------------
+    # Firewall Configuration
+    # ------------------------------------------------------------------
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+
+    - name: Set UFW defaults
+      ufw:
+        direction: "{{ item.direction }}"
+        policy: "{{ item.policy }}"
+      loop:
+        - { direction: 'incoming', policy: 'deny' }
+        - { direction: 'outgoing', policy: 'allow' }
+
+    - name: Allow SSH from hub VNet
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+        src: '10.0.0.0/16'
+
+    - name: Allow HTTPS outbound
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+        direction: out
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+
+    # ------------------------------------------------------------------
+    # Time Synchronization
+    # ------------------------------------------------------------------
+    - name: Configure NTP servers
+      template:
+        src: templates/timesyncd.conf.j2
+        dest: /etc/systemd/timesyncd.conf
+        mode: '0644'
+      notify: Restart timesyncd
+
+    # ------------------------------------------------------------------
+    # Security Hardening
+    # ------------------------------------------------------------------
+    - name: Set file permissions on sensitive files
+      file:
+        path: "{{ item }}"
+        mode: '0600'
+      loop:
+        - /etc/shadow
+        - /etc/gshadow
+      ignore_errors: yes
+
+    - name: Disable core dumps
+      lineinfile:
+        path: /etc/security/limits.conf
+        line: "* hard core 0"
+        state: present
+
+    - name: Set kernel security parameters
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_set: yes
+        state: present
+        reload: yes
+      loop:
+        - { key: 'net.ipv4.conf.all.send_redirects', value: '0' }
+        - { key: 'net.ipv4.conf.default.send_redirects', value: '0' }
+        - { key: 'net.ipv4.conf.all.accept_redirects', value: '0' }
+        - { key: 'net.ipv4.conf.default.accept_redirects', value: '0' }
+        - { key: 'net.ipv4.icmp_echo_ignore_broadcasts', value: '1' }
+        - { key: 'net.ipv4.conf.all.log_martians', value: '1' }
+        - { key: 'kernel.randomize_va_space', value: '2' }
+
+    # ------------------------------------------------------------------
+    # Audit Logging
+    # ------------------------------------------------------------------
+    - name: Install auditd
+      apt:
+        name: auditd
+        state: present
+
+    - name: Enable auditd service
+      systemd:
+        name: auditd
+        enabled: yes
+        state: started
+
+    - name: Configure audit rules for HIPAA compliance
+      copy:
+        dest: /etc/audit/rules.d/hipaa.rules
+        content: |
+          # Monitor access to sensitive files
+          -w /etc/passwd -p wa -k identity
+          -w /etc/group -p wa -k identity
+          -w /etc/shadow -p wa -k identity
+          -w /etc/sudoers -p wa -k actions
+          -w /var/log/auth.log -p wa -k auth_log
+          # Monitor login/logout events
+          -w /var/log/faillog -p wa -k logins
+          -w /var/log/lastlog -p wa -k logins
+          # Monitor file deletion
+          -a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=4294967295 -k delete
+        mode: '0640'
+      notify: Restart auditd
+
+  handlers:
+    - name: Restart SSH
+      systemd:
+        name: sshd
+        state: restarted
+
+    - name: Restart timesyncd
+      systemd:
+        name: systemd-timesyncd
+        state: restarted
+
+    - name: Restart auditd
+      systemd:
+        name: auditd
+        state: restarted
