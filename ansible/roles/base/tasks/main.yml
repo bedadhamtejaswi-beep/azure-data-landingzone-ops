@@ -1,0 +1,70 @@
+---
+# Ansible Role: Base Configuration
+# Handles common system setup across all Data Landing Zone VMs
+
+- name: Set hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Set timezone to Central Time
+  timezone:
+    name: America/Chicago
+
+- name: Install common packages
+  apt:
+    name:
+      - curl
+      - wget
+      - jq
+      - unzip
+      - htop
+      - iotop
+      - net-tools
+      - dnsutils
+      - vim
+      - tmux
+      - python3-pip
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - sysstat
+      - acl
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Create platform-ops group
+  group:
+    name: platform-ops
+    state: present
+
+- name: Create platform-ops user
+  user:
+    name: platform-ops
+    group: platform-ops
+    groups: sudo
+    shell: /bin/bash
+    create_home: yes
+
+- name: Configure system limits
+  pam_limits:
+    domain: "*"
+    limit_type: "{{ item.type }}"
+    limit_item: "{{ item.item }}"
+    value: "{{ item.value }}"
+  loop:
+    - { type: "soft", item: "nofile", value: "65535" }
+    - { type: "hard", item: "nofile", value: "65535" }
+    - { type: "soft", item: "nproc", value: "65535" }
+    - { type: "hard", item: "nproc", value: "65535" }
+
+- name: Enable and start required services
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - cron
+    - rsyslog
+    - sysstat

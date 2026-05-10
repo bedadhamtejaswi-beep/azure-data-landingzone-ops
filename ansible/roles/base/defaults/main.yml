@@ -1,0 +1,14 @@
+---
+# Default variables for base role
+base_timezone: "America/Chicago"
+base_packages:
+  - curl
+  - wget
+  - jq
+  - unzip
+  - htop
+  - net-tools
+  - python3-pip
+
+base_service_user: "platform-ops"
+base_service_group: "platform-ops"
