@@ -1,0 +1,133 @@
+---
+# Ansible Role: Security Hardening (CIS / HIPAA)
+# Applies security baselines required for HIPAA compliance
+
+- name: Disable unused filesystems
+  copy:
+    dest: "/etc/modprobe.d/{{ item }}.conf"
+    content: "install {{ item }} /bin/true"
+    mode: '0644'
+  loop:
+    - cramfs
+    - freevxfs
+    - jffs2
+    - hfs
+    - hfsplus
+    - squashfs
+    - udf
+
+- name: Ensure permissions on /etc/passwd
+  file:
+    path: /etc/passwd
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure permissions on /etc/shadow
+  file:
+    path: /etc/shadow
+    owner: root
+    group: shadow
+    mode: '0640'
+
+- name: Set password hashing algorithm to SHA-512
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^ENCRYPT_METHOD'
+    line: 'ENCRYPT_METHOD SHA512'
+
+- name: Set minimum password length
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MIN_LEN'
+    line: 'PASS_MIN_LEN 14'
+
+- name: Set password expiration to 90 days
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MAX_DAYS'
+    line: 'PASS_MAX_DAYS 90'
+
+- name: Set password minimum age to 7 days
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MIN_DAYS'
+    line: 'PASS_MIN_DAYS 7'
+
+- name: Configure login banner
+  copy:
+    dest: /etc/issue.net
+    content: |
+      ***************************************************************************
+      WARNING: This system is for authorized use only.
+      All activity is monitored and recorded for security and compliance purposes.
+      Unauthorized access is prohibited and may result in legal action.
+      ***************************************************************************
+    mode: '0644'
+
+- name: Enable banner in sshd_config
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Banner'
+    line: 'Banner /etc/issue.net'
+  notify: restart sshd
+
+- name: Disable IP forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '0'
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: Install and configure fail2ban
+  block:
+    - name: Install fail2ban
+      apt:
+        name: fail2ban
+        state: present
+
+    - name: Configure fail2ban for SSH
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [sshd]
+          enabled = true
+          port = ssh
+          filter = sshd
+          logpath = /var/log/auth.log
+          maxretry = 3
+          bantime = 3600
+          findtime = 600
+        mode: '0644'
+      notify: restart fail2ban
+
+- name: Ensure auditd is installed and running
+  apt:
+    name:
+      - auditd
+      - audispd-plugins
+    state: present
+
+- name: Deploy HIPAA audit rules
+  copy:
+    src: hipaa-audit.rules
+    dest: /etc/audit/rules.d/hipaa.rules
+    mode: '0640'
+  notify: restart auditd
+
+handlers:
+  - name: restart sshd
+    systemd:
+      name: sshd
+      state: restarted
+
+  - name: restart fail2ban
+    systemd:
+      name: fail2ban
+      state: restarted
+
+  - name: restart auditd
+    systemd:
+      name: auditd
+      state: restarted

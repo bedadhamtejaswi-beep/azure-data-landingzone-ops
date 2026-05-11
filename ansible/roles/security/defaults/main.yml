@@ -1,0 +1,8 @@
+---
+# Default variables for security role
+security_password_max_days: 90
+security_password_min_days: 7
+security_password_min_length: 14
+security_fail2ban_maxretry: 3
+security_fail2ban_bantime: 3600
+security_ssh_max_auth_tries: 3
