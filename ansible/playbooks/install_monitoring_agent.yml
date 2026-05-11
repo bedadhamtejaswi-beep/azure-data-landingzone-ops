@@ -1,0 +1,141 @@
+---
+# ==============================================================================
+# Install Azure Monitor Agent
+# ==============================================================================
+# Installs and configures the Azure Monitor Agent (AMA) for:
+# - Log collection to Log Analytics workspace
+# - Custom log collection for application logs
+# - Performance counter collection
+# - Syslog forwarding
+# ==============================================================================
+
+- name: Install and Configure Azure Monitor Agent
+  hosts: data_platform
+  become: true
+  vars:
+    workspace_id: "{{ lookup('env', 'LOG_ANALYTICS_WORKSPACE_ID') }}"
+    workspace_key: "{{ lookup('env', 'LOG_ANALYTICS_WORKSPACE_KEY') }}"
+    ama_version: "1.28"
+
+  tasks:
+    # ------------------------------------------------------------------
+    # Prerequisites
+    # ------------------------------------------------------------------
+    - name: Ensure required packages are installed
+      apt:
+        name:
+          - curl
+          - gpg
+        state: present
+
+    # ------------------------------------------------------------------
+    # Install Azure Monitor Agent
+    # ------------------------------------------------------------------
+    - name: Download Azure Monitor Agent installer
+      get_url:
+        url: "https://aka.ms/InstallAzureMonitorAgentLinux"
+        dest: /tmp/install_ama.sh
+        mode: '0755'
+
+    - name: Install Azure Monitor Agent
+      shell: /tmp/install_ama.sh
+      args:
+        creates: /opt/microsoft/azuremonitoragent/bin/mdsd
+      environment:
+        WORKSPACE_ID: "{{ workspace_id }}"
+        WORKSPACE_KEY: "{{ workspace_key }}"
+
+    - name: Ensure AMA service is running
+      systemd:
+        name: azuremonitoragent
+        enabled: yes
+        state: started
+
+    # ------------------------------------------------------------------
+    # Configure Custom Log Collection
+    # ------------------------------------------------------------------
+    - name: Create custom log collection directory
+      file:
+        path: /etc/opt/microsoft/azuremonitoragent/config-cache
+        state: directory
+        mode: '0755'
+
+    - name: Configure custom log sources
+      copy:
+        dest: /etc/opt/microsoft/azuremonitoragent/config-cache/custom_logs.json
+        content: |
+          {
+            "version": "1.0",
+            "logs": [
+              {
+                "name": "ApplicationLogs",
+                "paths": ["/var/log/data-platform/*.log"],
+                "format": "text",
+                "settings": {
+                  "multiline": {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}",
+                    "negate": true,
+                    "match": "after"
+                  }
+                }
+              },
+              {
+                "name": "AuditLogs",
+                "paths": ["/var/log/audit/audit.log"],
+                "format": "text"
+              }
+            ]
+          }
+        mode: '0644'
+      notify: Restart AMA
+
+    # ------------------------------------------------------------------
+    # Configure Syslog Collection
+    # ------------------------------------------------------------------
+    - name: Configure rsyslog forwarding to AMA
+      copy:
+        dest: /etc/rsyslog.d/95-azuremonitoragent.conf
+        content: |
+          # Forward syslog to Azure Monitor Agent
+          kern.warning              @127.0.0.1:28330
+          user.warning              @127.0.0.1:28330
+          daemon.warning            @127.0.0.1:28330
+          auth.warning              @127.0.0.1:28330
+          authpriv.warning          @127.0.0.1:28330
+          syslog.warning            @127.0.0.1:28330
+          cron.warning              @127.0.0.1:28330
+        mode: '0644'
+      notify: Restart rsyslog
+
+    # ------------------------------------------------------------------
+    # Log Rotation
+    # ------------------------------------------------------------------
+    - name: Configure log rotation for application logs
+      copy:
+        dest: /etc/logrotate.d/data-platform
+        content: |
+          /var/log/data-platform/*.log {
+              daily
+              missingok
+              rotate 30
+              compress
+              delaycompress
+              notifempty
+              create 0640 platform-ops platform-ops
+              sharedscripts
+              postrotate
+                  systemctl reload rsyslog > /dev/null 2>&1 || true
+              endscript
+          }
+        mode: '0644'
+
+  handlers:
+    - name: Restart AMA
+      systemd:
+        name: azuremonitoragent
+        state: restarted
+
+    - name: Restart rsyslog
+      systemd:
+        name: rsyslog
+        state: restarted
