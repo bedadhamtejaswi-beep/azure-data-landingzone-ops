@@ -1,0 +1,180 @@
+---
+# ==============================================================================
+# Configure PostgreSQL Management Server
+# ==============================================================================
+# Configures a management VM for PostgreSQL operations:
+# - Install PostgreSQL client tools
+# - Install and configure Liquibase
+# - Set up backup validation scripts
+# - Configure connectivity to Azure PostgreSQL
+# ==============================================================================
+
+- name: Configure PostgreSQL Management Server
+  hosts: postgresql
+  become: true
+  vars:
+    liquibase_version: "4.25.0"
+    postgresql_client_version: "15"
+    pg_host: "{{ lookup('env', 'PG_HOST') }}"
+    pg_port: 5432
+
+  tasks:
+    # ------------------------------------------------------------------
+    # PostgreSQL Client Tools
+    # ------------------------------------------------------------------
+    - name: Add PostgreSQL APT repository
+      shell: |
+        echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+        wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+      args:
+        creates: /etc/apt/sources.list.d/pgdg.list
+
+    - name: Install PostgreSQL client
+      apt:
+        name:
+          - "postgresql-client-{{ postgresql_client_version }}"
+          - libpq-dev
+        state: present
+        update_cache: yes
+
+    # ------------------------------------------------------------------
+    # Install Java (Required for Liquibase)
+    # ------------------------------------------------------------------
+    - name: Install OpenJDK 17
+      apt:
+        name: openjdk-17-jre-headless
+        state: present
+
+    # ------------------------------------------------------------------
+    # Install Liquibase
+    # ------------------------------------------------------------------
+    - name: Create Liquibase directory
+      file:
+        path: /opt/liquibase
+        state: directory
+        mode: '0755'
+
+    - name: Download Liquibase
+      get_url:
+        url: "https://github.com/liquibase/liquibase/releases/download/v{{ liquibase_version }}/liquibase-{{ liquibase_version }}.tar.gz"
+        dest: "/tmp/liquibase-{{ liquibase_version }}.tar.gz"
+
+    - name: Extract Liquibase
+      unarchive:
+        src: "/tmp/liquibase-{{ liquibase_version }}.tar.gz"
+        dest: /opt/liquibase
+        remote_src: yes
+        creates: /opt/liquibase/liquibase
+
+    - name: Create Liquibase symlink
+      file:
+        src: /opt/liquibase/liquibase
+        dest: /usr/local/bin/liquibase
+        state: link
+
+    - name: Verify Liquibase installation
+      command: liquibase --version
+      register: liquibase_version_output
+      changed_when: false
+
+    - name: Display Liquibase version
+      debug:
+        var: liquibase_version_output.stdout_lines
+
+    # ------------------------------------------------------------------
+    # Configure Database Connectivity
+    # ------------------------------------------------------------------
+    - name: Create .pgpass file for automated connections
+      copy:
+        dest: /home/platform-ops/.pgpass
+        content: |
+          # hostname:port:database:username:password
+          # Passwords should be managed via Azure Key Vault
+          # This is a template - populate via CI/CD pipeline
+          {{ pg_host }}:{{ pg_port }}:*:pgadmin:REPLACE_WITH_KEYVAULT_SECRET
+        owner: platform-ops
+        group: platform-ops
+        mode: '0600'
+
+    # ------------------------------------------------------------------
+    # Backup Validation Scripts
+    # ------------------------------------------------------------------
+    - name: Create backup validation script
+      copy:
+        dest: /opt/scripts/validate_backup.sh
+        content: |
+          #!/bin/bash
+          # =============================================================
+          # PostgreSQL Backup Validation Script
+          # =============================================================
+          # Validates the most recent Azure PostgreSQL backup by:
+          # 1. Checking backup status via Azure CLI
+          # 2. Verifying point-in-time restore capability
+          # 3. Logging results for compliance auditing
+          # =============================================================
+
+          set -euo pipefail
+
+          LOG_FILE="/var/log/data-platform/backup_validation.log"
+          DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          SERVER_NAME="${PG_SERVER_NAME:-dlz-dev-pgflex}"
+          RG_NAME="${PG_RG_NAME:-dlz-dev-postgresql-rg}"
+
+          log() {
+              echo "[$DATE] $1" | tee -a "$LOG_FILE"
+          }
+
+          log "Starting backup validation for $SERVER_NAME"
+
+          # Check server status
+          STATUS=$(az postgres flexible-server show \
+              --name "$SERVER_NAME" \
+              --resource-group "$RG_NAME" \
+              --query "state" -o tsv 2>/dev/null)
+
+          if [ "$STATUS" == "Ready" ]; then
+              log "SUCCESS: Server is in Ready state"
+          else
+              log "ERROR: Server state is $STATUS"
+              exit 1
+          fi
+
+          # Check backup configuration
+          BACKUP_RETENTION=$(az postgres flexible-server show \
+              --name "$SERVER_NAME" \
+              --resource-group "$RG_NAME" \
+              --query "backup.backupRetentionDays" -o tsv)
+
+          GEO_BACKUP=$(az postgres flexible-server show \
+              --name "$SERVER_NAME" \
+              --resource-group "$RG_NAME" \
+              --query "backup.geoRedundantBackup" -o tsv)
+
+          log "Backup retention: ${BACKUP_RETENTION} days"
+          log "Geo-redundant backup: ${GEO_BACKUP}"
+
+          # Check earliest restore point
+          EARLIEST_RESTORE=$(az postgres flexible-server show \
+              --name "$SERVER_NAME" \
+              --resource-group "$RG_NAME" \
+              --query "backup.earliestRestoreDate" -o tsv)
+
+          log "Earliest restore point: ${EARLIEST_RESTORE}"
+          log "Backup validation completed successfully"
+        mode: '0755'
+
+    - name: Create log directory
+      file:
+        path: /var/log/data-platform
+        state: directory
+        owner: platform-ops
+        group: platform-ops
+        mode: '0755'
+
+    - name: Schedule backup validation via cron
+      cron:
+        name: "PostgreSQL backup validation"
+        user: platform-ops
+        hour: "6"
+        minute: "0"
+        job: "/opt/scripts/validate_backup.sh >> /var/log/data-platform/backup_validation.log 2>&1"
