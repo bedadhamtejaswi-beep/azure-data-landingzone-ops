@@ -1,0 +1,83 @@
+---
+# Ansible Role: Monitoring
+# Installs and configures Azure Monitor Agent and custom metrics
+
+- name: Install Azure Monitor Agent dependencies
+  apt:
+    name:
+      - curl
+      - gpg
+      - python3-requests
+    state: present
+
+- name: Create monitoring scripts directory
+  file:
+    path: /opt/monitoring/scripts
+    state: directory
+    owner: root
+    group: platform-ops
+    mode: '0750'
+
+- name: Deploy custom health check script
+  template:
+    src: health_check.sh.j2
+    dest: /opt/monitoring/scripts/health_check.sh
+    mode: '0755'
+
+- name: Deploy disk usage monitoring script
+  copy:
+    dest: /opt/monitoring/scripts/disk_monitor.sh
+    content: |
+      #!/bin/bash
+      # Disk Usage Monitor - sends alerts when thresholds are exceeded
+      THRESHOLD=${1:-85}
+      HOSTNAME=$(hostname)
+
+      df -h --output=pcent,target | tail -n+2 | while read line; do
+          USAGE=$(echo "$line" | awk '{print $1}' | tr -d '%')
+          MOUNT=$(echo "$line" | awk '{print $2}')
+
+          if [ "$USAGE" -ge "$THRESHOLD" ]; then
+              logger -t disk_monitor "WARNING: ${MOUNT} is at ${USAGE}% on ${HOSTNAME}"
+          fi
+      done
+    mode: '0755'
+
+- name: Schedule disk monitoring cron job
+  cron:
+    name: "Disk usage monitoring"
+    minute: "*/15"
+    job: "/opt/monitoring/scripts/disk_monitor.sh 85"
+    user: root
+
+- name: Deploy process monitoring script
+  copy:
+    dest: /opt/monitoring/scripts/process_monitor.sh
+    content: |
+      #!/bin/bash
+      # Process Monitor - checks critical processes are running
+      CRITICAL_PROCESSES=("sshd" "rsyslog" "auditd" "cron")
+      HOSTNAME=$(hostname)
+
+      for proc in "${CRITICAL_PROCESSES[@]}"; do
+          if ! pgrep -x "$proc" > /dev/null 2>&1; then
+              logger -t process_monitor "CRITICAL: ${proc} is not running on ${HOSTNAME}"
+              systemctl start "$proc" 2>/dev/null || true
+          fi
+      done
+    mode: '0755'
+
+- name: Schedule process monitoring
+  cron:
+    name: "Process monitoring"
+    minute: "*/5"
+    job: "/opt/monitoring/scripts/process_monitor.sh"
+    user: root
+
+- name: Create log directory for monitoring
+  file:
+    path: /var/log/data-platform
+    state: directory
+    owner: platform-ops
+    group: platform-ops
+    mode: '0755'

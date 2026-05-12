@@ -1,0 +1,6 @@
+---
+# Default variables for monitoring role
+monitoring_scripts_dir: /opt/monitoring/scripts
+monitoring_log_dir: /var/log/data-platform
+monitoring_disk_threshold: 85
+monitoring_check_interval: 5
