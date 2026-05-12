@@ -1,0 +1,80 @@
+---
+# ==============================================================================
+# Terraform Apply - Triggered on merge to main
+# ==============================================================================
+name: "Terraform Apply"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+
+permissions:
+  contents: read
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  TF_VERSION: "1.6.0"
+
+jobs:
+  apply-dev:
+    name: "Apply to Dev"
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform/environments/dev
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve \
+            -var="postgresql_admin_username=${{ secrets.PG_ADMIN_USER }}" \
+            -var="postgresql_admin_password=${{ secrets.PG_ADMIN_PASSWORD }}"
+        working-directory: terraform/environments/dev
+
+  apply-prod:
+    name: "Apply to Prod"
+    runs-on: ubuntu-latest
+    needs: apply-dev
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform/environments/prod
+
+      - name: Terraform Plan
+        run: |
+          terraform plan -no-color \
+            -var="postgresql_admin_username=${{ secrets.PG_ADMIN_USER }}" \
+            -var="postgresql_admin_password=${{ secrets.PG_ADMIN_PASSWORD }}"
+        working-directory: terraform/environments/prod
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve \
+            -var="postgresql_admin_username=${{ secrets.PG_ADMIN_USER }}" \
+            -var="postgresql_admin_password=${{ secrets.PG_ADMIN_PASSWORD }}"
+        working-directory: terraform/environments/prod
