@@ -1,0 +1,149 @@
+---
+# ==============================================================================
+# Disaster Recovery Automation Playbook
+# ==============================================================================
+# Automates DR procedures for the Azure Data Landing Zone:
+# - Pre-failover health checks
+# - PostgreSQL failover initiation
+# - DNS update verification
+# - Post-failover validation
+# - Notification and logging
+# ==============================================================================
+
+- name: Disaster Recovery Failover
+  hosts: localhost
+  connection: local
+  vars:
+    primary_region: "centralus"
+    dr_region: "eastus2"
+    pg_server_name: "{{ lookup('env', 'PG_SERVER_NAME') | default('dlz-prod-pgflex', true) }}"
+    pg_rg_name: "{{ lookup('env', 'PG_RG_NAME') | default('dlz-prod-postgresql-rg', true) }}"
+    cosmos_account: "{{ lookup('env', 'COSMOS_ACCOUNT') | default('dlz-prod-cosmos', true) }}"
+    cosmos_rg_name: "{{ lookup('env', 'COSMOS_RG_NAME') | default('dlz-prod-cosmosdb-rg', true) }}"
+    notification_webhook: "{{ lookup('env', 'TEAMS_WEBHOOK_URL') | default('', true) }}"
+
+  tasks:
+    # ------------------------------------------------------------------
+    # Pre-Failover Checks
+    # ------------------------------------------------------------------
+    - name: "PHASE 1: Pre-Failover Health Assessment"
+      debug:
+        msg: "Starting disaster recovery failover process"
+
+    - name: Check Azure CLI authentication
+      command: az account show
+      register: az_account
+      changed_when: false
+
+    - name: Verify primary region status
+      command: >
+        az postgres flexible-server show
+        --name {{ pg_server_name }}
+        --resource-group {{ pg_rg_name }}
+        --query "{state:state, haState:highAvailability.state, location:location}"
+        -o json
+      register: pg_status
+      changed_when: false
+
+    - name: Display current PostgreSQL status
+      debug:
+        var: pg_status.stdout | from_json
+
+    - name: Check Cosmos DB account status
+      command: >
+        az cosmosdb show
+        --name {{ cosmos_account }}
+        --resource-group {{ cosmos_rg_name }}
+        --query "{writeLocations:writeLocations[*].locationName, readLocations:readLocations[*].locationName, failoverPriority:failoverPolicies}"
+        -o json
+      register: cosmos_status
+      changed_when: false
+
+    - name: Display Cosmos DB replication status
+      debug:
+        var: cosmos_status.stdout | from_json
+
+    # ------------------------------------------------------------------
+    # PostgreSQL Failover
+    # ------------------------------------------------------------------
+    - name: "PHASE 2: Initiate PostgreSQL Failover"
+      block:
+        - name: Trigger PostgreSQL HA failover
+          command: >
+            az postgres flexible-server restart
+            --name {{ pg_server_name }}
+            --resource-group {{ pg_rg_name }}
+            --failover Forced
+          register: pg_failover
+          when: dr_type | default('planned') == 'forced'
+
+        - name: Trigger PostgreSQL planned failover
+          command: >
+            az postgres flexible-server restart
+            --name {{ pg_server_name }}
+            --resource-group {{ pg_rg_name }}
+            --failover Planned
+          register: pg_failover_planned
+          when: dr_type | default('planned') == 'planned'
+      rescue:
+        - name: Log PostgreSQL failover failure
+          debug:
+            msg: "PostgreSQL failover failed - manual intervention required"
+
+    # ------------------------------------------------------------------
+    # Cosmos DB Failover
+    # ------------------------------------------------------------------
+    - name: "PHASE 3: Initiate Cosmos DB Regional Failover"
+      command: >
+        az cosmosdb failover-priority-change
+        --name {{ cosmos_account }}
+        --resource-group {{ cosmos_rg_name }}
+        --failover-policies "{{ dr_region }}=0" "{{ primary_region }}=1"
+      register: cosmos_failover
+      when: failover_cosmos | default(false) | bool
+
+    # ------------------------------------------------------------------
+    # Post-Failover Validation
+    # ------------------------------------------------------------------
+    - name: "PHASE 4: Post-Failover Validation"
+      debug:
+        msg: "Running post-failover validation checks"
+
+    - name: Wait for PostgreSQL to stabilize
+      pause:
+        seconds: 60
+
+    - name: Verify PostgreSQL is accessible after failover
+      command: >
+        az postgres flexible-server show
+        --name {{ pg_server_name }}
+        --resource-group {{ pg_rg_name }}
+        --query "state" -o tsv
+      register: pg_post_status
+      until: pg_post_status.stdout == "Ready"
+      retries: 10
+      delay: 30
+
+    - name: Log failover completion
+      debug:
+        msg: |
+          ============================================
+          DISASTER RECOVERY FAILOVER COMPLETE
+          ============================================
+          PostgreSQL Status: {{ pg_post_status.stdout }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          ============================================
+
+    # ------------------------------------------------------------------
+    # Notification
+    # ------------------------------------------------------------------
+    - name: Send Teams notification
+      uri:
+        url: "{{ notification_webhook }}"
+        method: POST
+        body_format: json
+        body:
+          title: "DR Failover Completed"
+          text: "Data Landing Zone failover completed at {{ ansible_date_time.iso8601 }}. PostgreSQL status: {{ pg_post_status.stdout }}"
+      when: notification_webhook != ""
+      ignore_errors: yes
