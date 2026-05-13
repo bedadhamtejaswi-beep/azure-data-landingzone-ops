@@ -102,3 +102,5 @@ jobs:
             --password="${{ secrets.PG_ADMIN_PASSWORD }}" \
             rollbackCount 1
         working-directory: liquibase/
+
+# NOTE: For private PostgreSQL use a self-hosted runner in the VNet
