@@ -1,0 +1,104 @@
+---
+# ==============================================================================
+# Liquibase Database Migration
+# ==============================================================================
+name: "Database Migration"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'liquibase/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      action:
+        description: 'Migration action'
+        required: true
+        default: 'update'
+        type: choice
+        options:
+          - update
+          - rollback
+          - status
+          - validate
+
+env:
+  LIQUIBASE_VERSION: "4.25.0"
+
+jobs:
+  migrate:
+    name: "Run Migration (${{ github.event.inputs.environment || 'dev' }})"
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Download Liquibase
+        run: |
+          wget -q "https://github.com/liquibase/liquibase/releases/download/v${LIQUIBASE_VERSION}/liquibase-${LIQUIBASE_VERSION}.tar.gz"
+          mkdir -p /opt/liquibase
+          tar -xzf "liquibase-${LIQUIBASE_VERSION}.tar.gz" -C /opt/liquibase
+          echo "/opt/liquibase" >> $GITHUB_PATH
+
+      - name: Download PostgreSQL JDBC Driver
+        run: |
+          wget -q "https://jdbc.postgresql.org/download/postgresql-42.7.1.jar" -O /opt/liquibase/lib/postgresql.jar
+
+      - name: Validate Changelog
+        run: |
+          liquibase \
+            --changeLogFile=changelog/db.changelog-master.xml \
+            --url="jdbc:postgresql://${{ secrets.PG_HOST }}:5432/${{ secrets.PG_DATABASE }}" \
+            --username="${{ secrets.PG_ADMIN_USER }}" \
+            --password="${{ secrets.PG_ADMIN_PASSWORD }}" \
+            validate
+        working-directory: liquibase/
+
+      - name: Run Migration
+        if: github.event.inputs.action == 'update' || github.event_name == 'push'
+        run: |
+          liquibase \
+            --changeLogFile=changelog/db.changelog-master.xml \
+            --url="jdbc:postgresql://${{ secrets.PG_HOST }}:5432/${{ secrets.PG_DATABASE }}" \
+            --username="${{ secrets.PG_ADMIN_USER }}" \
+            --password="${{ secrets.PG_ADMIN_PASSWORD }}" \
+            update
+        working-directory: liquibase/
+
+      - name: Check Status
+        if: github.event.inputs.action == 'status'
+        run: |
+          liquibase \
+            --changeLogFile=changelog/db.changelog-master.xml \
+            --url="jdbc:postgresql://${{ secrets.PG_HOST }}:5432/${{ secrets.PG_DATABASE }}" \
+            --username="${{ secrets.PG_ADMIN_USER }}" \
+            --password="${{ secrets.PG_ADMIN_PASSWORD }}" \
+            status
+        working-directory: liquibase/
+
+      - name: Rollback
+        if: github.event.inputs.action == 'rollback'
+        run: |
+          liquibase \
+            --changeLogFile=changelog/db.changelog-master.xml \
+            --url="jdbc:postgresql://${{ secrets.PG_HOST }}:5432/${{ secrets.PG_DATABASE }}" \
+            --username="${{ secrets.PG_ADMIN_USER }}" \
+            --password="${{ secrets.PG_ADMIN_PASSWORD }}" \
+            rollbackCount 1
+        working-directory: liquibase/
