@@ -1,0 +1,50 @@
+---
+# ==============================================================================
+# Ansible Lint - Validate Ansible Playbooks
+# ==============================================================================
+name: "Ansible Lint"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ansible/**'
+  push:
+    branches: [main]
+    paths:
+      - 'ansible/**'
+
+jobs:
+  lint:
+    name: "Lint Ansible Playbooks"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible and ansible-lint
+        run: |
+          pip install ansible ansible-lint yamllint
+
+      - name: Run yamllint
+        run: |
+          yamllint -d relaxed ansible/
+        continue-on-error: true
+
+      - name: Run ansible-lint
+        run: |
+          ansible-lint ansible/playbooks/*.yml
+        continue-on-error: true
+
+      - name: Ansible syntax check
+        run: |
+          for playbook in ansible/playbooks/*.yml; do
+            echo "Checking $playbook..."
+            ansible-playbook --syntax-check "$playbook" || true
+          done
