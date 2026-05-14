@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.25.xsd">
+
+    <!-- Version 1.0 - Initial schema -->
+    <include file="v1.0/create_patients_table.xml" relativeToChangelogFile="true"/>
+    <include file="v1.0/create_claims_table.xml" relativeToChangelogFile="true"/>
+
+    <!-- Version 1.1 - Audit enhancements -->
+    <include file="v1.1/add_audit_columns.xml" relativeToChangelogFile="true"/>
+
+</databaseChangeLog>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.25.xsd">
+
+    <changeSet id="1.0-001" author="platform-ops">
+        <comment>Create patients table for healthcare analytics</comment>
+        <createTable tableName="patients">
+            <column name="patient_id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="mrn" type="VARCHAR(50)">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="date_of_birth" type="DATE"/>
+            <column name="gender" type="VARCHAR(10)"/>
+            <column name="zip_code" type="VARCHAR(10)"/>
+            <column name="enrollment_date" type="DATE"/>
+            <column name="plan_type" type="VARCHAR(50)"/>
+            <column name="pcp_provider_id" type="VARCHAR(50)"/>
+            <column name="risk_score" type="DECIMAL(5,2)"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <createIndex indexName="idx_patients_mrn" tableName="patients">
+            <column name="mrn"/>
+        </createIndex>
+
+        <createIndex indexName="idx_patients_zip" tableName="patients">
+            <column name="zip_code"/>
+        </createIndex>
+
+        <createIndex indexName="idx_patients_plan" tableName="patients">
+            <column name="plan_type"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="patients"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
