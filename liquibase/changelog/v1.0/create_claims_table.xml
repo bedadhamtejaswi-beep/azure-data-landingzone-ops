@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.25.xsd">
+
+    <changeSet id="1.0-002" author="platform-ops">
+        <comment>Create claims table for healthcare claims processing</comment>
+        <createTable tableName="claims">
+            <column name="claim_id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="patient_id" type="UUID">
+                <constraints nullable="false"
+                    foreignKeyName="fk_claims_patient"
+                    references="patients(patient_id)"/>
+            </column>
+            <column name="claim_number" type="VARCHAR(50)">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="service_date" type="DATE" />
+            <column name="claim_type" type="VARCHAR(20)"/>
+            <column name="diagnosis_code" type="VARCHAR(10)"/>
+            <column name="procedure_code" type="VARCHAR(10)"/>
+            <column name="provider_npi" type="VARCHAR(10)"/>
+            <column name="facility_code" type="VARCHAR(20)"/>
+            <column name="billed_amount" type="DECIMAL(12,2)"/>
+            <column name="allowed_amount" type="DECIMAL(12,2)"/>
+            <column name="paid_amount" type="DECIMAL(12,2)"/>
+            <column name="member_liability" type="DECIMAL(12,2)"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="submitted"/>
+            <column name="adjudication_date" type="DATE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <createIndex indexName="idx_claims_patient" tableName="claims">
+            <column name="patient_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_claims_service_date" tableName="claims">
+            <column name="service_date"/>
+        </createIndex>
+
+        <createIndex indexName="idx_claims_status" tableName="claims">
+            <column name="status"/>
+        </createIndex>
+
+        <createIndex indexName="idx_claims_diagnosis" tableName="claims">
+            <column name="diagnosis_code"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="claims"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
