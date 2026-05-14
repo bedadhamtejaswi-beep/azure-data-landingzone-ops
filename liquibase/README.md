@@ -41,3 +41,6 @@ liquibase --changeLogFile=changelog/db.changelog-master.xml rollbackCount 1
 ## CI/CD Integration
 
 Migrations are automatically applied via the `liquibase-migrate.yml` GitHub Actions workflow on merge to `main`.
+
+
+Always test rollbacks in dev before applying migrations to prod.
