@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.25.xsd">
+
+    <changeSet id="1.1-001" author="platform-ops">
+        <comment>Add audit columns for HIPAA compliance tracking</comment>
+
+        <!-- Create audit_log table -->
+        <createTable tableName="audit_log">
+            <column name="audit_id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="table_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="old_values" type="JSONB"/>
+            <column name="new_values" type="JSONB"/>
+            <column name="changed_by" type="VARCHAR(100)"/>
+            <column name="changed_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="ip_address" type="VARCHAR(45)"/>
+            <column name="user_agent" type="VARCHAR(255)"/>
+        </createTable>
+
+        <createIndex indexName="idx_audit_table" tableName="audit_log">
+            <column name="table_name"/>
+        </createIndex>
+
+        <createIndex indexName="idx_audit_record" tableName="audit_log">
+            <column name="record_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_audit_timestamp" tableName="audit_log">
+            <column name="changed_at"/>
+        </createIndex>
+
+        <!-- Add audit trigger columns to existing tables -->
+        <addColumn tableName="patients">
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+        </addColumn>
+
+        <addColumn tableName="claims">
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="claims" columnName="updated_by"/>
+            <dropColumn tableName="claims" columnName="created_by"/>
+            <dropColumn tableName="patients" columnName="updated_by"/>
+            <dropColumn tableName="patients" columnName="created_by"/>
+            <dropTable tableName="audit_log"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
