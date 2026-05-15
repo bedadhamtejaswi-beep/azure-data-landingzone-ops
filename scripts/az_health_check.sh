@@ -137,3 +137,5 @@ echo "=============================================="
 if [ "$FAIL" -gt 0 ]; then
     exit 1
 fi
+
+# Exit codes: 0 = healthy, 1 = failures detected
