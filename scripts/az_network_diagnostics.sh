@@ -77,3 +77,5 @@ az network private-dns zone list \
 
 echo ""
 echo "Network diagnostics complete."
+
+# Requires Network Contributor RBAC role
