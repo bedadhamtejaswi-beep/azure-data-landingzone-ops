@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "resources": [
+    {
+      "type": "Microsoft.Insights/metricAlerts",
+      "apiVersion": "2018-03-01",
+      "name": "high-cpu-alert",
+      "location": "global",
+      "properties": {
+        "description": "Alerts when PostgreSQL CPU exceeds 80% for 15 minutes",
+        "severity": 2,
+        "enabled": true,
+        "scopes": ["<postgresql_resource_id>"],
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT15M",
+        "criteria": {
+          "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+          "allOf": [
+            {
+              "name": "CPU_Threshold",
+              "metricName": "cpu_percent",
+              "metricNamespace": "Microsoft.DBforPostgreSQL/flexibleServers",
+              "operator": "GreaterThan",
+              "threshold": 80,
+              "timeAggregation": "Average",
+              "criterionType": "StaticThresholdCriterion"
+            }
+          ]
+        },
+        "actions": [
+          {
+            "actionGroupId": "<action_group_id>"
+          }
+        ]
+      }
+    }
+  ]
+}
