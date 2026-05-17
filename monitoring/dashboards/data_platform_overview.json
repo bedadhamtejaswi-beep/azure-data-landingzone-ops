@@ -1,0 +1,120 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2020-09-01/dashboardDefinition.json#",
+  "properties": {
+    "lenses": [
+      {
+        "order": 0,
+        "parts": [
+          {
+            "position": { "x": 0, "y": 0, "colSpan": 6, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "PostgreSQL CPU Utilization",
+                "subtitle": "Average CPU % over time",
+                "chartType": "Line",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.DBforPostgreSQL/flexibleServers" },
+                    "name": "cpu_percent",
+                    "aggregationType": "Average",
+                    "namespace": "Microsoft.DBforPostgreSQL/flexibleServers"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 24, "timeUnit": "Hour" } }
+              }
+            }
+          },
+          {
+            "position": { "x": 6, "y": 0, "colSpan": 6, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "PostgreSQL Storage Usage",
+                "subtitle": "Storage % utilization",
+                "chartType": "Line",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.DBforPostgreSQL/flexibleServers" },
+                    "name": "storage_percent",
+                    "aggregationType": "Average",
+                    "namespace": "Microsoft.DBforPostgreSQL/flexibleServers"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 7, "timeUnit": "Day" } }
+              }
+            }
+          },
+          {
+            "position": { "x": 0, "y": 4, "colSpan": 6, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "Active Database Connections",
+                "chartType": "Line",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.DBforPostgreSQL/flexibleServers" },
+                    "name": "active_connections",
+                    "aggregationType": "Average",
+                    "namespace": "Microsoft.DBforPostgreSQL/flexibleServers"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 24, "timeUnit": "Hour" } }
+              }
+            }
+          },
+          {
+            "position": { "x": 6, "y": 4, "colSpan": 6, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "Data Lake Storage Transactions",
+                "chartType": "Bar",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.Storage/storageAccounts" },
+                    "name": "Transactions",
+                    "aggregationType": "Total",
+                    "namespace": "Microsoft.Storage/storageAccounts"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 24, "timeUnit": "Hour" } }
+              }
+            }
+          },
+          {
+            "position": { "x": 0, "y": 8, "colSpan": 12, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "Cosmos DB Request Units Consumed",
+                "chartType": "Line",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.DocumentDB/databaseAccounts" },
+                    "name": "TotalRequestUnits",
+                    "aggregationType": "Total",
+                    "namespace": "Microsoft.DocumentDB/databaseAccounts"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 24, "timeUnit": "Hour" } }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "model": {
+        "timeRange": { "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange", "value": { "relative": { "duration": 24, "timeUnit": 1 } } }
+      }
+    }
+  },
+  "name": "Data Platform Overview",
+  "type": "Microsoft.Portal/dashboards",
+  "location": "centralus",
+  "tags": {
+    "hidden-title": "Data Platform Overview Dashboard"
+  }
+}
