@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "resources": [
+    {
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2021-08-01",
+      "name": "pipeline-failure-alert",
+      "location": "centralus",
+      "properties": {
+        "description": "Alerts when data pipeline failures are detected in logs",
+        "severity": 2,
+        "enabled": true,
+        "scopes": ["<log_analytics_workspace_id>"],
+        "evaluationFrequency": "PT10M",
+        "windowSize": "PT30M",
+        "criteria": {
+          "allOf": [
+            {
+              "query": "AzureDiagnostics | where Category == 'DatabricksJobs' | where status_s == 'Failed' | summarize FailedCount = count() by bin(TimeGenerated, 10m)",
+              "timeAggregation": "Count",
+              "operator": "GreaterThan",
+              "threshold": 3,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "actions": {
+          "actionGroups": ["<action_group_id>"]
+        }
+      }
+    }
+  ]
+}
