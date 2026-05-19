@@ -1,0 +1,88 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2020-09-01/dashboardDefinition.json#",
+  "properties": {
+    "lenses": [
+      {
+        "order": 0,
+        "parts": [
+          {
+            "position": { "x": 0, "y": 0, "colSpan": 6, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "Database IOPS",
+                "chartType": "Line",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.DBforPostgreSQL/flexibleServers" },
+                    "name": "iops",
+                    "aggregationType": "Average"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 24, "timeUnit": "Hour" } }
+              }
+            }
+          },
+          {
+            "position": { "x": 6, "y": 0, "colSpan": 6, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "Database Memory Usage",
+                "chartType": "Line",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.DBforPostgreSQL/flexibleServers" },
+                    "name": "memory_percent",
+                    "aggregationType": "Average"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 24, "timeUnit": "Hour" } }
+              }
+            }
+          },
+          {
+            "position": { "x": 0, "y": 4, "colSpan": 6, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "Query Duration (P95)",
+                "chartType": "Line",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.DBforPostgreSQL/flexibleServers" },
+                    "name": "longest_transaction_time_sec",
+                    "aggregationType": "Maximum"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 24, "timeUnit": "Hour" } }
+              }
+            }
+          },
+          {
+            "position": { "x": 6, "y": 4, "colSpan": 6, "rowSpan": 4 },
+            "metadata": {
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+              "settings": {
+                "title": "Connections by State",
+                "chartType": "Bar",
+                "metrics": [
+                  {
+                    "resourceMetadata": { "resourceType": "Microsoft.DBforPostgreSQL/flexibleServers" },
+                    "name": "active_connections",
+                    "aggregationType": "Average"
+                  }
+                ],
+                "timeRange": { "relative": { "duration": 24, "timeUnit": "Hour" } }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "name": "Database Performance Dashboard",
+  "type": "Microsoft.Portal/dashboards",
+  "location": "centralus",
+  "tags": { "hidden-title": "Database Performance Dashboard" }
+}
