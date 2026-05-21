@@ -76,3 +76,7 @@ The Azure Data Landing Zone is designed as an enterprise-grade data platform fol
 - **Curated:** Cleaned and standardized data
 - **Enriched:** Analytics-ready datasets
 - **Archive:** Long-term retention
+
+
+## Data Flow
+Raw data ingested into ADLS raw zone, processed through Databricks.
