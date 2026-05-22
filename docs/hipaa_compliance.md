@@ -68,3 +68,7 @@ This document tracks HIPAA compliance controls implemented in the Azure Data Lan
 - [x] Geo-redundant backups enabled
 - [x] Azure Policy for compliance enforcement
 - [x] Microsoft Defender for Cloud enabled
+
+
+## Review Schedule
+Quarterly compliance reviews per HIPAA requirements.
