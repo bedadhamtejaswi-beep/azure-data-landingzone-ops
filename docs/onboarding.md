@@ -74,3 +74,7 @@ terraform plan
 | Azure Admin | Cloud Infrastructure | ServiceNow |
 | Security | IS&T Security | security@example.com |
 | DBA | Database Team | dba-team@example.com |
+
+
+## FAQ
+See troubleshooting.md for common issues.
