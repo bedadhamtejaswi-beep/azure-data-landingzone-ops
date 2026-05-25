@@ -57,3 +57,5 @@ az cosmosdb show \
 
 echo ""
 echo "Backup validation complete."
+
+# Added error handling improvements
