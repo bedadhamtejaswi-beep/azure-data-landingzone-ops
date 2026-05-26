@@ -218,3 +218,5 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "failed_connections" {
     action_groups = [azurerm_monitor_action_group.critical.id]
   }
 }
+
+# Alert query optimized to reduce false positives
