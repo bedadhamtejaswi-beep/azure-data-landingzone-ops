@@ -176,3 +176,5 @@ resource "azurerm_monitor_diagnostic_setting" "postgresql" {
     enabled  = true
   }
 }
+
+# Maintenance: Sunday 4 AM UTC
