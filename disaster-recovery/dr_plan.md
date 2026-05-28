@@ -107,3 +107,7 @@ This document defines the Disaster Recovery (DR) strategy for the Azure Data Lan
 | Q2 | Component | PostgreSQL failover test |
 | Q3 | Full | Complete DR failover and failback |
 | Q4 | Tabletop + Lessons learned | Review and improve |
+
+
+## 8. Recent Updates
+May 2026: Added cross-region Cosmos DB failover.
