@@ -139,3 +139,5 @@ resource "azurerm_monitor_diagnostic_setting" "cosmosdb" {
     enabled  = true
   }
 }
+
+# Session consistency balances latency and freshness for analytics
