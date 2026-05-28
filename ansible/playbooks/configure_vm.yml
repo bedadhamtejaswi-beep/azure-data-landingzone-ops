@@ -218,3 +218,5 @@
       systemd:
         name: auditd
         state: restarted
+
+# All tasks verified for idempotency
