@@ -211,3 +211,7 @@ See [docs/hipaa_compliance.md](docs/hipaa_compliance.md) for the full compliance
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+
+## Makefile
+Run make help to see all available commands.
