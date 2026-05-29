@@ -159,3 +159,5 @@ module "cosmosdb" {
   private_endpoint_subnet_id = module.networking.private_endpoints_subnet_id
   log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
 }
+
+# All resources tagged per organizational tagging policy
