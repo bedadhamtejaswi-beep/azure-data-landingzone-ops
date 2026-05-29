@@ -89,3 +89,5 @@ resource "azurerm_monitor_diagnostic_setting" "databricks" {
     enabled  = true
   }
 }
+
+# no_public_ip ensures private-only cluster nodes (HIPAA)
