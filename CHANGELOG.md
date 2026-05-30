@@ -55,3 +55,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - Initial project structure
 - .gitignore and LICENSE
+
+
+## [1.2.1] - 2026-05-30
+
+### Fixed
+- Improved error handling in scripts
+- Updated DR plan with Q2 results
