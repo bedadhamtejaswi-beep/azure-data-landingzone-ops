@@ -72,3 +72,7 @@ This document tracks HIPAA compliance controls implemented in the Azure Data Lan
 
 ## Review Schedule
 Quarterly compliance reviews per HIPAA requirements.
+
+
+## Audit Trail
+All changes version-controlled in Git for audit purposes.
